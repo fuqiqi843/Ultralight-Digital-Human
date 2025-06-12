@@ -31,8 +31,8 @@ mode = args.asr
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 def get_audio_features(features, index):
-    left = index - 8
-    right = index + 8
+    left = index - 4
+    right = index + 4
     pad_left = 0
     pad_right = 0
     if left < 0:
@@ -100,7 +100,7 @@ for i in range(audio_feats.shape[0]):
     img_masked = img_masked.transpose(2,0,1).astype(np.float32)
     img_real_ex = img_real_ex.transpose(2,0,1).astype(np.float32)
     
-    img_real_ex_T = torch.from_numpy(img_real_ex / 255.0)
+    img_real_ex_T = torch.from_numpy(img_real_ex / 255.0).to(device)
     img_masked_T = torch.from_numpy(img_masked / 255.0).to(device)
     img_concat_T = torch.cat([img_real_ex_T, img_masked_T], axis=0)[None]
     
