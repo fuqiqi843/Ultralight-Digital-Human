@@ -8,4 +8,6 @@ checkpoint
 syncnet_checkpoint
 *.jpg
 data_utils/encoder.onnx
+input
+output
 __MACOSX
