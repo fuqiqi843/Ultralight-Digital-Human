@@ -36,10 +36,10 @@ class InvertedResidual(nn.Module):
             return self.conv(x)
 
 class DoubleConvDW(nn.Module):
-    
+
     def __init__(self, in_channels, out_channels, stride=2):
 
-        super(DoubleConvDW, self).__init__() 
+        super(DoubleConvDW, self).__init__()
         self.double_conv = nn.Sequential(
             InvertedResidual(in_channels, out_channels, stride=stride, use_res_connect=False, expand_ratio=2),
             InvertedResidual(out_channels, out_channels, stride=1, use_res_connect=True, expand_ratio=2)
@@ -50,7 +50,7 @@ class DoubleConvDW(nn.Module):
 
 class InConvDw(nn.Module):
     def __init__(self, in_channels, out_channels):
-        super(InConvDw, self).__init__() 
+        super(InConvDw, self).__init__()
         self.inconv = nn.Sequential(
             InvertedResidual(in_channels, out_channels, stride=1, use_res_connect=False, expand_ratio=2)
         )
@@ -58,7 +58,7 @@ class InConvDw(nn.Module):
         return self.inconv(x)
 
 class Down(nn.Module):
-    
+
     def __init__(self, in_channels, out_channels):
 
         super(Down, self).__init__()
@@ -77,13 +77,13 @@ class Up(nn.Module):
         self.conv =  DoubleConvDW(in_channels, out_channels, stride=1)
 
     def forward(self, x1, x2):
-        
+
         x1 = self.up(x1)
         diffY = x2.shape[2] - x1.shape[2]
         diffX = x2.shape[3] - x1.shape[3]
         x1 = F.pad(x1, [diffX // 2, diffX - diffX // 2, diffY // 2, diffY - diffY // 2])
         x = torch.cat([x1, x2], axis=1)
-        
+
         return self.conv(x)
 
 class OutConv(nn.Module):
@@ -96,87 +96,88 @@ class OutConv(nn.Module):
 class AudioConvWenet(nn.Module):
     def __init__(self):
         super(AudioConvWenet, self).__init__()
-        # ch = [16, 32, 64, 128, 256]   # if you want to run this model on a mobile device, use this. 
+        # ch = [16, 32, 64, 128, 256]   # if you want to run this model on a mobile device, use this.
         ch = [32, 64, 128, 256, 512]
+        # 修改处
         self.conv1 = InvertedResidual(ch[2], ch[3], stride=1, use_res_connect=False, expand_ratio=2)
         self.conv2 = InvertedResidual(ch[3], ch[3], stride=1, use_res_connect=True, expand_ratio=2)
-        
+
         self.conv3 = nn.Conv2d(ch[3], ch[3], kernel_size=3, padding=1, stride=(1,2))
         self.bn3 = nn.BatchNorm2d(ch[3])
-        
+
         self.conv4 = InvertedResidual(ch[3], ch[3], stride=1, use_res_connect=True, expand_ratio=2)
-        
+
         self.conv5 = nn.Conv2d(ch[3], ch[4], kernel_size=3, padding=3, stride=2)
         self.bn5 = nn.BatchNorm2d(ch[4])
         self.relu = nn.ReLU()
-        
+
         self.conv6 = InvertedResidual(ch[4], ch[4], stride=1, use_res_connect=True, expand_ratio=2)
         self.conv7 = InvertedResidual(ch[4], ch[4], stride=1, use_res_connect=True, expand_ratio=2)
-    
+
     def forward(self, x):
-        
+
         x = self.conv1(x)
         x = self.conv2(x)
-        
+
         x = self.relu(self.bn3(self.conv3(x)))
-        
+
         x = self.conv4(x)
-        
+
         x = self.relu(self.bn5(self.conv5(x)))
-        
+
         x = self.conv6(x)
         x = self.conv7(x)
-    
+
         return x
-    
+
 class AudioConvHubert(nn.Module):
     def __init__(self):
         super(AudioConvHubert, self).__init__()
-        # ch = [16, 32, 64, 128, 256]   # if you want to run this model on a mobile device, use this. 
+        # ch = [16, 32, 64, 128, 256]   # if you want to run this model on a mobile device, use this.
         ch = [32, 64, 128, 256, 512]
-        self.conv1 = InvertedResidual(32, ch[1], stride=1, use_res_connect=False, expand_ratio=2)
+        self.conv1 = InvertedResidual(16, ch[1], stride=1, use_res_connect=False, expand_ratio=2)
         self.conv2 = InvertedResidual(ch[1], ch[2], stride=1, use_res_connect=False, expand_ratio=2)
-        
+
         self.conv3 = nn.Conv2d(ch[2], ch[3], kernel_size=3, padding=1, stride=(2,2))
         self.bn3 = nn.BatchNorm2d(ch[3])
-        
+
         self.conv4 = InvertedResidual(ch[3], ch[3], stride=1, use_res_connect=True, expand_ratio=2)
-        
+
         self.conv5 = nn.Conv2d(ch[3], ch[4], kernel_size=3, padding=3, stride=2)
         self.bn5 = nn.BatchNorm2d(ch[4])
         self.relu = nn.ReLU()
-        
+
         self.conv6 = InvertedResidual(ch[4], ch[4], stride=1, use_res_connect=True, expand_ratio=2)
         self.conv7 = InvertedResidual(ch[4], ch[4], stride=1, use_res_connect=True, expand_ratio=2)
-    
+
     def forward(self, x):
-        
+
         x = self.conv1(x)
         x = self.conv2(x)
-        
+
         x = self.relu(self.bn3(self.conv3(x)))
-        
+
         x = self.conv4(x)
-        
+
         x = self.relu(self.bn5(self.conv5(x)))
-        
+
         x = self.conv6(x)
         x = self.conv7(x)
-    
+
         return x
 
 class Model(nn.Module):
     def __init__(self,n_channels=6, mode='wenet'):
         super(Model, self).__init__()
         self.n_channels = n_channels   #BGR
-        # ch = [16, 32, 64, 128, 256]  # if you want to run this model on a mobile device, use this. 
+        # ch = [16, 32, 64, 128, 256]  # if you want to run this model on a mobile device, use this.
         ch = [32, 64, 128, 256, 512]
-        
+
         if mode=='hubert':
             self.audio_model = AudioConvHubert()
         if mode=='wenet':
             self.audio_model = AudioConvWenet()
-            
+
         self.fuse_conv = nn.Sequential(
             DoubleConvDW(ch[4]*2, ch[4], stride=1),
             DoubleConvDW(ch[4], ch[3], stride=1)
@@ -202,7 +203,7 @@ class Model(nn.Module):
         x3 = self.down2(x2)
         x4 = self.down3(x3)
         x5 = self.down4(x4)
-        
+
         audio_feat  = self.audio_model(audio_feat)
         x5 = torch.cat([x5, audio_feat], axis=1)
         x5 = self.fuse_conv(x5)
@@ -211,8 +212,47 @@ class Model(nn.Module):
         x = self.up3(x, x2)
         x = self.up4(x, x1)
         out = self.outc(x)
-        out = F.sigmoid(out)
+        out = torch.sigmoid(out)
         return out
+
+
+def fuse_model(self):
+    def fuse_inverted_residual(m):
+        for name, module in m.named_children():
+            if isinstance(module, InvertedResidual):
+                # conv 是一个 nn.Sequential，里面有8个模块（部分是 Identity）
+                # 我们只融合以下三组：
+                # 1) conv[0](Conv) + conv[1](BN) + conv[2](ReLU)
+                # 2) conv[3](Conv) + conv[4](BN) + conv[5](ReLU)
+                # 3) conv[6](Conv) + conv[7](BN)  # 注意这里不能融合 ReLU 因为是 Identity
+
+                torch.quantization.fuse_modules(module.conv, ['0', '1', '2'], inplace=True)
+                torch.quantization.fuse_modules(module.conv, ['3', '4', '5'], inplace=True)
+
+                # 判断第7个模块是否是Identity
+                if not isinstance(module.conv[7], nn.Identity):
+                    torch.quantization.fuse_modules(module.conv, ['6', '7'], inplace=True)
+                else:
+                    # 只有 Conv 和 Identity 不能融合，跳过
+                    pass
+            else:
+                fuse_inverted_residual(module)
+
+    fuse_inverted_residual(self)
+
+    def fuse_audio_conv(m):
+        for name, module in m.named_children():
+            # 融合 conv3 + bn3 + relu
+            if hasattr(module, 'conv3') and hasattr(module, 'bn3') and hasattr(module, 'relu'):
+                torch.quantization.fuse_modules(module, ['conv3', 'bn3', 'relu'], inplace=True)
+            # 融合 conv5 + bn5 + relu
+            if hasattr(module, 'conv5') and hasattr(module, 'bn5') and hasattr(module, 'relu'):
+                torch.quantization.fuse_modules(module, ['conv5', 'bn5', 'relu'], inplace=True)
+
+            fuse_audio_conv(module)
+
+    fuse_audio_conv(self)
+
 
 if __name__ == '__main__':
     import time
@@ -248,7 +288,7 @@ if __name__ == '__main__':
         ort_outs = ort_session.run(None, ort_inputs)
         np.testing.assert_allclose(torch_out[0].cpu().numpy(), ort_outs[0][0], rtol=1e-03, atol=1e-05)
         print("Exported model has been tested with ONNXRuntime, and the result looks good!")
-        
+
     net = Model(6).eval().to(device)
     img = torch.zeros([1, 6, 160, 160]).to(device)
     audio = torch.zeros([1, 16, 32, 32]).to(device)
@@ -257,14 +297,14 @@ if __name__ == '__main__':
     macs, params = clever_format([flops, params], "%3f")
     print(macs, params)
     # dynamic_axes= {'input':[2, 3], 'output':[2, 3]}
-    
+
     input_dict = {"input": img, "audio": audio}
-    
+
     with torch.no_grad():
         torch_out = net(img, audio)
         print(torch_out.shape)
         torch.onnx.export(net, (img, audio), onnx_path, input_names=['input', "audio"],
-                        output_names=['output'], 
+                        output_names=['output'],
                         # dynamic_axes=dynamic_axes,
                         # example_outputs=torch_out,
                         opset_version=11,
